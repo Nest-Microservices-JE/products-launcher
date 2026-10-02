@@ -33,6 +33,8 @@ services:
     container_name: orders_database
     image: postgres:16.2
     restart: always
+    ports:
+      - 5433:5432
     volumes:
       - ./orders-ms/postgres:/var/lib/postgresql/data
     environment:
@@ -45,11 +47,31 @@ services:
     build: ./orders-ms
     volumes:
       - ./orders-ms/src:/usr/src/app/src
-    command: npm run start:dev
+      - ./orders-ms/prisma:/usr/src/app/prisma
+    command: sh -c "npx prisma migrate deploy && npm run start:dev"
     environment:
       - PORT=3002
       - NATS_SERVERS=nats://nats-server:4222
       - DATABASE_URL=postgresql://postgres:123456@orders-db:5432/ordersdb?schema=public
     depends_on:
       - orders-db
+
+# ====================
+# Payments Microservice
+# ====================
+  payments-ms:
+    container_name: payments-ms
+    build: ./payments-ms
+    volumes:
+      - ./payments-ms/src:/usr/src/app/src
+    command: npm run start:dev
+    ports:
+      - ${PAYMENT_MS_PORT}:${PAYMENT_MS_PORT}
+    environment:
+      - NATS_SERVERS=nats://nats-server:4222
+      - PORT=${PAYMENT_MS_PORT}
+      - STRIPE_SECRET=${STRIPE_SECRET}
+      - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}
+      - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}
+      - STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}
 
